@@ -1,7 +1,7 @@
-const {onRequest} = require("firebase-functions/v2/https");
+const { onCall } = require("firebase-functions/v2/https");
 const { defineString } = require('firebase-functions/params');
 const OpenAI = require('openai');
-const { log, info, error } = require("firebase-functions/logger");
+const { info, error } = require("firebase-functions/logger");
 
 // Scoring parameters
 const modelName_scoring = `gpt-4o-mini`
@@ -15,23 +15,26 @@ You now have to stitch together the multiple connected clues into a single cohes
 const temp_scoring = 0.3
 const max_tok_scoring = 4096
 
-exports.callScoring = onRequest(async (request, response) => {
-    const userPrompt_scoring = request.body.text;
+exports.callScoring = onCall(async (request) => {
+    info("request: ", request);
+    info("request.data: ", request.data);
+    info("request.data.text: ", request.data.text);
+    // info("request.auth.uid: ", request.auth.uid);
 
     // Validate input
+    const userPrompt_scoring = request.data.text;
     if (!userPrompt_scoring || userPrompt_scoring.length === 0) {
-        response.status(400).send("Missing user prompt for scoring");
-        return;
+        throw new HttpsError(
+            "invalid-argument", 
+            "idk"
+        );
     }
-    log(`User Prompt: ${userPrompt_scoring}`);
+    info(`User Prompt: ${userPrompt_scoring}`);
 
     try {
-        const apiKey = defineString('OPENAI_API_KEY');
-        log(`apiKey: ${apiKey}`);
-
         // Call OpenAI API
         const openai = new OpenAI({ 
-            apiKey:  apiKey
+            apiKey:  defineString('OPENAI_API_KEY').value()
         });
         const result_scoring = await openai.chat.completions.create({
             model: modelName_scoring,
@@ -48,14 +51,14 @@ exports.callScoring = onRequest(async (request, response) => {
             temperature: temp_scoring,
             max_completion_tokens: max_tok_scoring
         });
-        const result = result_scoring.choices[0].message;
+        const result = result_scoring.choices[0].message.content;
         info(`Scoring Result: ${result}`);
 
         // Send back the result to Unity
-        response.status(200).send({ result: result });
+        return {result: result};
     } 
     catch (err) {
         error("Error calling OpenAI API:", err);
-        response.status(500).send("Failed to process the request.");
+        return {result: "Failed to process the data."};
     }
 });
