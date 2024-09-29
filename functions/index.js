@@ -1,12 +1,7 @@
 const {onRequest} = require("firebase-functions/v2/https");
-const functions = require('firebase-functions')
-const logger = require("firebase-functions/logger");
+const { defineString } = require('firebase-functions/params');
 const OpenAI = require('openai');
-
-const config = functions.config()
-const openai = new OpenAI({ 
-    apiKey:  config.openai_api_key
-});
+const { log, info, error } = require("firebase-functions/logger");
 
 // Scoring parameters
 const modelName_scoring = `gpt-4o-mini`
@@ -20,45 +15,47 @@ You now have to stitch together the multiple connected clues into a single cohes
 const temp_scoring = 0.3
 const max_tok_scoring = 4096
 
-async function CallOpenaiApi(modelName, systemPrompt, userPrompt, temp, max_tok) {
-    const completion = await openai.chat.completions.create({
-        model: modelName,
-        messages: [
-            {
-                "role": "system", 
-                "content": systemPrompt
-            },
-            {
-                "role": "user", 
-                "content": userPrompt
-            }
-        ],
-        temperature: temp,
-        max_completion_tokens: max_tok
-    });
-    logger.info(`CallOpenaiApi Choice: ${completion.choices[0]}`);
+exports.callScoring = onRequest(async (request, response) => {
+    const userPrompt_scoring = request.body.text;
 
-    return completion.choices[0];
-}
-
-exports.callScoring = functions.https.onRequest(async (request, response) => {
-    const prompt = request.query.text;
-    if (prompt.length == 0) {
-        response.status(400).send("Missing prompt");
+    // Validate input
+    if (!userPrompt_scoring || userPrompt_scoring.length === 0) {
+        response.status(400).send("Missing user prompt for scoring");
+        return;
     }
-    else {
-        logger.info(`Prompt: ${prompt}`);
-    }
-    
-    const completion_scoring = await CallOpenaiApi(
-        modelName_scoring, 
-        systemPrompt_scoring, 
-        prompt_scoring, 
-        temp_scoring, 
-        max_tok_scoring
-    );
-    const result_scoring = completion_scoring.choices[0].content;
-    logger.info(`Scoring Result: ${result_scoring}`);
+    log(`User Prompt: ${userPrompt_scoring}`);
 
-    response.send(result_scoring);
+    try {
+        const apiKey = defineString('OPENAI_API_KEY');
+        log(`apiKey: ${apiKey}`);
+
+        // Call OpenAI API
+        const openai = new OpenAI({ 
+            apiKey:  apiKey
+        });
+        const result_scoring = await openai.chat.completions.create({
+            model: modelName_scoring,
+            messages: [
+                {
+                    "role": "system", 
+                    "content": systemPrompt_scoring
+                },
+                {
+                    "role": "user", 
+                    "content": userPrompt_scoring
+                }
+            ],
+            temperature: temp_scoring,
+            max_completion_tokens: max_tok_scoring
+        });
+        const result = result_scoring.choices[0].message;
+        info(`Scoring Result: ${result}`);
+
+        // Send back the result to Unity
+        response.status(200).send({ result: result });
+    } 
+    catch (err) {
+        error("Error calling OpenAI API:", err);
+        response.status(500).send("Failed to process the request.");
+    }
 });
