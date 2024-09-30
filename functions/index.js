@@ -129,12 +129,36 @@ exports.callGen = onSchedule("every 1 minutes", async (event) => {
         const clue_content = clue.clue_content;
         info(`Clue ${idx + 1}: ${clue_type} - ${clue_content}`);
 
-        // FIXME: Update to save the image in Storage instead of RTDB
         if (clue_type.toLowerCase() === "image") {
-            // const response = await generateImage(clue_content); // Assuming generateImage is defined to call OpenAI API
-            // const b64_json = response.data.data[0].b64_json;
-            clue.b64_json = "";
-            // info(`Image b64_json: ${b64_json.slice(0, 10)}`);
+            const img_gen = await openai.images.generate({
+                model: defineString('IMGMODELNAME_GEN').value(),
+                size: defineString('IMG_SIZE').value(),
+                prompt: clue_content,
+                n: 1
+            });
+            info(`Img Gen Result: ${img_gen}`);
+
+            // Assuming OpenAI returns URL, not base64 content.
+            const img_url = img_gen.data[0].url;
+            info(`Img URL: ${img_url}`);
+
+            // Fetch image from URL and convert to buffer
+            const fileContent = await fetch(img_url)
+            const buffer = await fileContent.arrayBuffer()
+            const imageBuffer = Buffer.from(buffer)
+            const fileName = `clues/${Date.now()}.png`;
+            await admin.storage().bucket().file(fileName).save(imageBuffer, {
+                contentType: 'image/png',
+                metadata: {
+                    contentType: 'image/png'
+                }
+            });
+
+            // Get download URL
+            const imgPath = `/clues/${fileName}`;
+            info(`Image saved to Storage. Download URL: ${imgPath}`);
+
+            clue.image_url = imgPath;
         }
 
         // Push data to Firebase
