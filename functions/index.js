@@ -63,7 +63,8 @@ exports.callScoring = onCall(async (request) => {
 
 //#region Gen
 
-exports.callGen = onSchedule(defineString('SCHEDULE_GEN').value(), async (event) => {
+// FIXME: Figure out how to use env var for this
+exports.callGen = onSchedule('every 1 minutes', async (event) => {
     // Call OpenAI API
     const openai = new OpenAI({ 
         apiKey:  defineString('OPENAI_API_KEY').value()
