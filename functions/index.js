@@ -82,7 +82,7 @@ You are to work on a political conspiracy creator game. The player is to be pres
 They can then connect them in any order with some relationship between the connections. This final conspiracy is to be judged and scored to rank the player on a global leaderboard.
 `;
 const userPrompt_gen = `
-Create 5 of each clue_type
+Create 1 of each clue_type
 `;
 const temp_gen = 1
 const max_tok_gen = 2048
@@ -121,10 +121,9 @@ const response_format = {
     }
     }
 }
-var num_of_itr = 1
 
 // Function
-exports.callGen = onSchedule("every 24 hours", async (event) => {
+exports.callGen = onSchedule("every 1 minutes", async (event) => {
     // Call OpenAI API
     const openai = new OpenAI({ 
         apiKey:  defineString('OPENAI_API_KEY').value()
@@ -156,11 +155,12 @@ exports.callGen = onSchedule("every 24 hours", async (event) => {
         const clue_content = clue.clue_content;
         info(`Clue ${idx + 1}: ${clue_type} - ${clue_content}`);
 
+        // FIXME: Update to save the image in Storage instead of RTDB
         if (clue_type.toLowerCase() === "image") {
-            const response = await generateImage(clue_content); // Assuming generateImage is defined to call OpenAI API
-            const b64_json = response.data.data[0].b64_json;
-            clue.b64_json = b64_json;
-            info(`Image b64_json: ${b64_json.slice(0, 10)}`);
+            // const response = await generateImage(clue_content); // Assuming generateImage is defined to call OpenAI API
+            // const b64_json = response.data.data[0].b64_json;
+            clue.b64_json = "";
+            // info(`Image b64_json: ${b64_json.slice(0, 10)}`);
         }
 
         // Push data to Firebase
