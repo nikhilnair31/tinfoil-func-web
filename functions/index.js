@@ -146,17 +146,14 @@ exports.callGen = onSchedule("every 1 minutes", async (event) => {
             const fileContent = await fetch(img_url)
             const buffer = await fileContent.arrayBuffer()
             const imageBuffer = Buffer.from(buffer)
-            const fileName = `clues/${Date.now()}.png`;
-            await admin.storage().bucket().file(fileName).save(imageBuffer, {
+            const imgPath = `clues/${Date.now()}.png`;
+            info(`imgPath: ${imgPath}`);
+            await admin.storage().bucket().file(imgPath).save(imageBuffer, {
                 contentType: 'image/png',
                 metadata: {
                     contentType: 'image/png'
                 }
             });
-
-            // Get download URL
-            const imgPath = `/clues/${fileName}`;
-            info(`Image saved to Storage. Download URL: ${imgPath}`);
 
             clue.image_url = imgPath;
         }
