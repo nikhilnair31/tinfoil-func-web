@@ -2,28 +2,15 @@
 const { onCall } = require("firebase-functions/v2/https");
 const { info, error } = require("firebase-functions/logger");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { defineString } = require('firebase-functions/params');
+const { defineString} = require('firebase-functions/params');
 const admin = require("firebase-admin");
 const OpenAI = require('openai');
 
 admin.initializeApp();
 //#endregion
 
-//#region Scoring Related
+//#region Scoring
 
-// Parameters
-const modelName_scoring = `gpt-4o-mini`
-const systemPrompt_scoring = `
-You are to work on a fun and absurd conspiracy creator game. 
-The player is to be presented with a list of things like notes, news snippets, images and location markers. 
-They can then connect them in any order with some relationship between the connections. 
-This final conspiracy is to be judged and scored to rank the player on a global leaderboard. 
-You now have to stitch together the multiple connected clues into a single cohesive conspiracy.
-`;
-const temp_scoring = 0.3
-const max_tok_scoring = 4096
-
-// Function
 exports.callScoring = onCall(async (request) => {
     info("request: ", request);
     info("request.data: ", request.data);
@@ -46,19 +33,19 @@ exports.callScoring = onCall(async (request) => {
             apiKey:  defineString('OPENAI_API_KEY').value()
         });
         const result_scoring = await openai.chat.completions.create({
-            model: modelName_scoring,
+            model: defineString('MODELNAME_SCORING').value(),
             messages: [
                 {
                     "role": "system", 
-                    "content": systemPrompt_scoring
+                    "content": defineString('SYSTEMPROMPT_SCORING').value()
                 },
                 {
                     "role": "user", 
                     "content": userPrompt_scoring
                 }
             ],
-            temperature: temp_scoring,
-            max_completion_tokens: max_tok_scoring
+            temperature: Number.parseFloat(defineString('TEMP_SCORING').value()),
+            max_completion_tokens: Number.parseFloat(defineString('MAX_TOK_SCORING').value())
         });
         const result = result_scoring.choices[0].message.content;
         info(`Scoring Result: ${result}`);
@@ -71,78 +58,65 @@ exports.callScoring = onCall(async (request) => {
         return {result: "Failed to process the data."};
     }
 });
+
 //#endregion
 
-//#region Gen Related
+//#region Gen
 
-// Parameters
-const modelName_gen = `gpt-4o-mini`
-const systemPrompt_gen = `
-You are to work on a political conspiracy creator game. The player is to be presented with a list of things like notes, news snippets, images and real world location markers. 
-They can then connect them in any order with some relationship between the connections. This final conspiracy is to be judged and scored to rank the player on a global leaderboard.
-`;
-const userPrompt_gen = `
-Create 1 of each clue_type
-`;
-const temp_gen = 1
-const max_tok_gen = 2048
-const response_format = {
-    "type": "json_schema",
-    "json_schema": {
-    "name": "clue_data",
-    "strict": true,
-    "schema": {
-        "type": "object",
-        "properties": {
-        "all_data": {
-            "type": "array",
-            "items": {
-            "type": "object",
-            "properties": {
-                "clue_type": {
-                    "type": "string"
-                },
-                "clue_content": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "clue_type",
-                "clue_content"
-            ],
-            "additionalProperties": false
-            }
-        }
-        },
-        "additionalProperties": false,
-        "required": [
-            "all_data"
-        ]
-    }
-    }
-}
-
-// Function
 exports.callGen = onSchedule("every 1 minutes", async (event) => {
     // Call OpenAI API
     const openai = new OpenAI({ 
         apiKey:  defineString('OPENAI_API_KEY').value()
     });
     const result_gen = await openai.chat.completions.create({
-        model: modelName_gen,
+        model: defineString('MODELNAME_GEN').value(),
         messages: [
             {
                 "role": "system", 
-                "content": systemPrompt_gen
+                "content": defineString('SYSTEMPROMPT_GEN').value()
             },
             {
                 "role": "user", 
-                "content": userPrompt_gen
+                "content": defineString('USERPROMPT_GEN').value()
             }
         ],
-        temperature: temp_gen,
-        max_completion_tokens: max_tok_gen,
-        response_format: response_format
+        temperature: Number.parseFloat(defineString('TEMP_GEN').value()),
+        max_completion_tokens: Number.parseFloat(defineString('MAX_TOK_GEN').value()),
+        response_format: {
+            "type": "json_schema",
+            "json_schema": {
+            "name": "clue_data",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "properties": {
+                "all_data": {
+                    "type": "array",
+                    "items": {
+                    "type": "object",
+                    "properties": {
+                        "clue_type": {
+                            "type": "string"
+                        },
+                        "clue_content": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "clue_type",
+                        "clue_content"
+                    ],
+                    "additionalProperties": false
+                    }
+                }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "all_data"
+                ]
+            }
+            }
+        }
     });
     const result = result_gen.choices[0].message.content;
     info(`Gen Result: ${result}`);
@@ -175,4 +149,5 @@ exports.callGen = onSchedule("every 1 minutes", async (event) => {
         })
     }
 });
+
 //#endregion
