@@ -63,7 +63,7 @@ exports.callScoring = onCall(async (request) => {
 
 //#region Gen
 
-exports.callGen = onSchedule("every 1 minutes", async (event) => {
+exports.callGen = onSchedule(defineString('SCHEDULE_GEN').value(), async (event) => {
     // Call OpenAI API
     const openai = new OpenAI({ 
         apiKey:  defineString('OPENAI_API_KEY').value()
@@ -155,11 +155,11 @@ exports.callGen = onSchedule("every 1 minutes", async (event) => {
                 }
             });
 
-            clue.image_url = imgPath;
+            clue.imagePath = imgPath;
         }
 
         // Push data to Firebase
-        admin.database().ref('/test')
+        admin.database().ref('/clues')
         .push(clue)
         .then(() => {
             info("Pushed data");
